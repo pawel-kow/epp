@@ -17,7 +17,7 @@ There is no build system, test suite or linter. Perl cannot run outside the cont
 | `cgi-bin/epp/command/` | `command-{check,create,delete,info,poll,renew,transfer,update}.cgi`: one script per EPP command, each handling the domain, contact and host objects. `create` and `update` are about 2,000 lines each. |
 | `cgi-bin/epp/session/` | `session-{hello,login,logout}.cgi` |
 | `cgi-bin/epp/error/` | `error-*.cgi`: response generators for the errors `mod_epp` detects (schema, parse, login, protocol, auth required, internal) |
-| `cgi-bin/epp/lib/EPP/` | `Config.pm` (parses `registry.conf` into `%EPP::Config::c`), `EPPWriter.pm` (builds the response XML), `EPPResultCode.pm`, `Date.pm`, `Version.pm` |
+| `cgi-bin/epp/lib/EPP/` | `Config.pm` (parses `registry.conf` into `%EPP::Config::c`), `EPPWriter.pm` (builds the response XML), `EPPResultCode.pm`, `Transaction.pm`, `Date.pm`, `Version.pm` |
 | `cgi-bin/epp/cron/` | `write-zone.pl`, `change-domain-status.pl`, `auto-approve-transfer.pl`, `auto-clean-unused-contact-and-host.pl`, `statistics.pl`, `send-invoice.pl`, with mail and PDF templates in `src/` |
 | `cgi-bin/epp/htpasswd/.htpasswd` | Sample Basic-auth file; unused when auth goes through `mod_authn_dbd` |
 | `cgi-bin/{whois,das}/` | PHP WHOIS and DAS front ends |
@@ -32,7 +32,7 @@ There is no build system, test suite or linter. Perl cannot run outside the cont
 - Every CGI script starts with `use lib '/var/www/cgi-bin/epp/lib'`, aliases `%c` to `%EPP::Config::c`, and connects with `DBI` using `mysql_*` keys from `registry.conf`. Adding a config key means adding it to `etc/registry/registry.conf` and reading it as `$c{'key'}`.
 - `Config.pm` parses lines as `key = value` and strips `#` comments. A value cannot contain `#`.
 - Scripts are plain `.cgi` files run through `SetHandler cgi-script`. `mod_epp` maps each EPP command to an `Alias` in `etc/httpd/conf.d/epp.conf`. A new script needs an alias there.
-- Each command logs to the `registryTransaction` database through `update_transaction` (the `clTRID` is stored uniquely).
+- Each command opens its `registryTransaction` row with `record_cl_transaction` (`EPP/Transaction.pm`), which stores the `clTRID` per registrar as `<registrar id>:<clTRID>`, answers `2400` and exits on a reuse, and completes the row with `update_transaction`. The `header()` is printed before that point, so a `die` leaves the client with no reply.
 - Cron jobs write logs to `/var/log/epp/*.log`; the schedule is in `etc/cron.d/registry`.
 - Files carry the Apache License 2.0 header and the XPanel copyright. Keep the header on new files.
 

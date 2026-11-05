@@ -40,7 +40,7 @@ my $code = $q->param('code');
 my $msg = $q->param('msg');
 my $s = strftime("%Y%m%d%H%M%S", localtime);
 
-$cltrid = 'non-specified' unless (defined($cltrid));
+my $cltrid_element = length($cltrid // '') ? "<clTRID>$cltrid</clTRID>" : '';
 $code = 2400 unless (defined($code));
 $msg = 'generic error' unless (defined($msg));
 
@@ -66,7 +66,7 @@ print <<EOM;
       <msg>$msg</msg>
     </result>
     <trID>
-      <clTRID>$cltrid</clTRID>
+      $cltrid_element
       <svTRID>$s</svTRID>
     </trID>
   </response>

@@ -30,6 +30,7 @@ use strict;
 use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
+use EPP::Transaction;
 use CGI qw(:standard);
 use XML::XPath;
 use Email::Valid;
@@ -46,7 +47,6 @@ my $frame = $q->param('frame');
 my $xp = XML::XPath->new(xml => $frame);
 
 my $cltrid = $q->param('clTRID');
-$cltrid = 'not-given' unless (defined($cltrid));
 my $remote_user = $ENV{REMOTE_USER};
 
 
@@ -68,7 +68,7 @@ my ($registrar_id,$registrar_prefix) = $dbh->selectrow_array("SELECT `id`,`prefi
 my $sth = $dbh->prepare("INSERT INTO `registryTransaction`.`transaction_identifier` (`registrar_id`,`clTRID`,`clTRIDframe`,`cldate`,`clmicrosecond`) VALUES(?,?,?,?,?)") or die $dbh->errstr;
 my $date_for_cl_transaction = microsecond();
 my ($cldate,$clmicrosecond) = split(/\./, $date_for_cl_transaction);
-$sth->execute($registrar_id,$cltrid,$frame,$cldate,$clmicrosecond) or die $sth->errstr;
+record_cl_transaction($sth,$blob,$registrar_id,$frame,$cldate,$clmicrosecond);
 my $transaction_id = $dbh->last_insert_id(undef, undef, undef, undef);
 
 # EPP commands are atomic, so a command will either succeed completely or fail completely. Success and failure results MUST NOT be mixed.

@@ -30,6 +30,7 @@ use strict;
 use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
+use EPP::Transaction;
 use CGI qw(:standard);
 use XML::XPath;
 use DBI;
@@ -46,7 +47,6 @@ my $frame = $q->param('frame');
 my $xp = XML::XPath->new(xml => $frame);
 
 my $cltrid = $q->param('clTRID');
-$cltrid = 'not-given' unless (defined($cltrid));
 my $remote_user = $ENV{REMOTE_USER};
 
 
@@ -74,12 +74,7 @@ my $sth = $dbh->prepare("INSERT INTO `registryTransaction`.`transaction_identifi
 my $date_for_cl_transaction = microsecond();
 my ($cldate,$clmicrosecond) = split(/\./, $date_for_cl_transaction);
 
-# The insert fails on a reused clTRID; dying here would leave the client without a reply
-if (!$sth->execute($registrar_id,$cltrid,$frame,$cldate,$clmicrosecond)) {
-	$blob->{resultCode} = 2400; # Command failed
-	print epp_writer($blob);
-	exit;
-}
+record_cl_transaction($sth,$blob,$registrar_id,$frame,$cldate,$clmicrosecond);
 my $transaction_id = $dbh->last_insert_id(undef, undef, undef, undef);
 
 

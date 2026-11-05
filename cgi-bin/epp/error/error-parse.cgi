@@ -47,7 +47,7 @@ my $msg = $q->param("msg");
 my $session = $q->cookie("session");
 my $s = strftime("%Y%m%d%H%M%S", localtime);
 
-$cltrid = "non-specified" unless (defined($cltrid));
+my $cltrid_element = length($cltrid // '') ? "<clTRID>$cltrid</clTRID>" : '';
 $code = 2400 unless (defined($code));
 $msg = "generic error" unless (defined($msg));
 $session = "no session cookie" unless (defined($session));
@@ -73,7 +73,7 @@ print <<EOM;
       <msg>$msg</msg>
     </result>
     <trID>
-      <clTRID>$cltrid</clTRID>
+      $cltrid_element
       <svTRID>$s</svTRID>
       <!-- Session-cookie: $session -->
     </trID>

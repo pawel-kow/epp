@@ -165,7 +165,7 @@ sub _postamble {
 
     if (defined($resp->{clTRID}) || defined($resp->{svTRID})) {
         $writer->startTag('trID');
-            $writer->dataElement('clTRID', $resp->{clTRID});
+            $writer->dataElement('clTRID', $resp->{clTRID}) if (length($resp->{clTRID} // ''));
             $writer->dataElement('svTRID', $resp->{svTRID});
         $writer->endTag(); # </trID>
     }
