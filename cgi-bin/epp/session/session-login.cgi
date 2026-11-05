@@ -58,16 +58,29 @@ $blob->{resultCode} = 1000;
 $blob->{command} = 'login';
 
 my $node = $xp->findnodes('/epp:epp/epp:command/epp:login')->get_node(0);
-my ($registrar_id) = $dbh->selectrow_array("SELECT `id` FROM `registrar` WHERE `clid` = '$remote_user' LIMIT 1");
+my ($registrar_id) = $dbh->selectrow_array("SELECT `id` FROM `registrar` WHERE `clid` = ? LIMIT 1", undef, $remote_user);
+
+my $date_for_svtrid = date_for_svtrid();
+$blob->{svTRID} = $date_for_svtrid . '-clID:' . ($registrar_id // 0) . '-epp:login';
+
+# An unknown clID cannot be logged: transaction_identifier.registrar_id is NOT NULL
+if (!defined($registrar_id)) {
+	$blob->{resultCode} = 2200; # Authentication error
+	print epp_writer($blob);
+	exit;
+}
 
 my $sth = $dbh->prepare("INSERT INTO `registryTransaction`.`transaction_identifier` (`registrar_id`,`clTRID`,`clTRIDframe`,`cldate`,`clmicrosecond`) VALUES(?,?,?,?,?)") or die $dbh->errstr;
 my $date_for_cl_transaction = microsecond();
 my ($cldate,$clmicrosecond) = split(/\./, $date_for_cl_transaction);
-$sth->execute($registrar_id,$cltrid,$frame,$cldate,$clmicrosecond) or die $sth->errstr;
-my $transaction_id = $dbh->last_insert_id(undef, undef, undef, undef);
 
-my $date_for_svtrid = date_for_svtrid();
-$blob->{svTRID} = $date_for_svtrid . '-clID:' . $registrar_id . '-epp:login';
+# The insert fails on a reused clTRID; dying here would leave the client without a reply
+if (!$sth->execute($registrar_id,$cltrid,$frame,$cldate,$clmicrosecond)) {
+	$blob->{resultCode} = 2400; # Command failed
+	print epp_writer($blob);
+	exit;
+}
+my $transaction_id = $dbh->last_insert_id(undef, undef, undef, undef);
 
 
 my $clID = $xp->findvalue('epp:clID[1]', $node);
@@ -77,7 +90,7 @@ my $lang = $xp->findvalue('epp:options/epp:lang[1]', $node);
 my $digest = sha1_base64($pw);
 my $sha1 = '{SHA}'.$digest.'=';
 
-my ($clID_id) = $dbh->selectrow_array("SELECT `id` FROM `registrar` WHERE `clid` = '$clID' AND `pw` = '$sha1' LIMIT 1");
+my ($clID_id) = $dbh->selectrow_array("SELECT `id` FROM `registrar` WHERE `clid` = ? AND `pw` = ? LIMIT 1", undef, $clID, $sha1);
 
 if (!$clID_id) {
 	$blob->{resultCode} = 2200; # Authentication error

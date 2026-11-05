@@ -39,7 +39,7 @@ There is no build system, test suite or linter. Perl cannot run outside the cont
 ## Things to know before changing code
 
 - `sql/registry.sql` creates users with default passwords (`EPPRegistry`, `EPPRegistrySELECT`, `EPPRegistryUPDATE`). The parent repo filters those lines out and creates its own user, so do not rely on them.
-- `registrar.pw` is checked by Apache, not by the CGI scripts, and must be `{SHA}base64(sha1(pwd))`.
+- `registrar.pw` is checked by Apache through `EPPAuthURI`, and again by `session-login.cgi`. It must be `{SHA}base64(sha1(pwd))`.
 - `etc/httpd/conf.d/epp.conf` is the stock server config (`www.xpanel.com`, `SSLVerifyClient require`, certificate paths under `/etc/pki`). The parent repo replaces it with its own `epp_server_common.conf`, so changes here do not carry over.
 - `etc/registry/registry.conf` here is a reference copy. The parent's `etc/registry/registry.conf` overwrites it in the image, so a new key has to be added to both, and to the parent's `x-registry-env` if it comes from the environment.
 - `write-zone.pl` reads `zone_ns1` and `zone_ns2`. `command-transfer.cgi` reads `transfer_lock_days` and `transfer_waiting_minutes`; the waiting period is in minutes, unlike upstream's 5 days.

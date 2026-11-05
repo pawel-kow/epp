@@ -58,7 +58,7 @@ $blob->{resultCode} = 1000;
 $blob->{cmd} = 'renew';
 
 my $node = $xp->findnodes('/epp:epp/epp:command/epp:renew')->get_node(0);
-my ($registrar_id) = $dbh->selectrow_array("SELECT `id` FROM `registrar` WHERE `clid` = '$remote_user' LIMIT 1");
+my ($registrar_id) = $dbh->selectrow_array("SELECT `id` FROM `registrar` WHERE `clid` = ? LIMIT 1", undef, $remote_user);
 
 my $sth = $dbh->prepare("INSERT INTO `registryTransaction`.`transaction_identifier` (`registrar_id`,`clTRID`,`clTRIDframe`,`cldate`,`clmicrosecond`) VALUES(?,?,?,?,?)") or die $dbh->errstr;
 my $date_for_cl_transaction = microsecond();

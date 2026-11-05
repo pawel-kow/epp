@@ -61,7 +61,7 @@ $blob->{resultCode} = 1000;
 $blob->{cmd} = 'info';
 
 my $node = $xp->findnodes('/epp:epp/epp:command/epp:info')->get_node(0);
-my ($registrar_id,$accountBalance,$creditLimit,$creditThreshold,$thresholdType) = $dbh->selectrow_array("SELECT `id`,`accountBalance`,`creditLimit`,`creditThreshold`,`thresholdType` FROM `registrar` WHERE `clid` = '$remote_user' LIMIT 1");
+my ($registrar_id,$accountBalance,$creditLimit,$creditThreshold,$thresholdType) = $dbh->selectrow_array("SELECT `id`,`accountBalance`,`creditLimit`,`creditThreshold`,`thresholdType` FROM `registrar` WHERE `clid` = ? LIMIT 1", undef, $remote_user);
 
 my $sth = $dbh->prepare("INSERT INTO `registryTransaction`.`transaction_identifier` (`registrar_id`,`clTRID`,`clTRIDframe`,`cldate`,`clmicrosecond`) VALUES(?,?,?,?,?)") or die $dbh->errstr;
 my $date_for_cl_transaction = microsecond();
