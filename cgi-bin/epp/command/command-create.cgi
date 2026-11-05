@@ -1967,9 +1967,6 @@ elsif ($obj = $xp->find('host:create',$node)->get_node(0)) {
 				$addr = _normalise_v4_address($addr);
 			}
 
-			# v4 => 4; v6 => 6
-			$addr_type =~ s/\D//g;
-
 			# aici nu pot fi dubluri, noi de fapt am verificat mai sus daca adresele IP nu se dubleaza, dar mai stii poate dupa normalizare unele se aseamana
 			my $sth = $dbh->prepare("INSERT INTO `host_addr` (`host_id`,`addr`,`ip`) VALUES(?,?,?)") or die $dbh->errstr;
 			$sth->execute($host_id,$addr,$addr_type) or die $sth->errstr;

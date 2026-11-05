@@ -39,8 +39,8 @@ my $sth = $dbh->prepare("SELECT `id`,`tld` FROM `domain_tld`");
 $sth->execute();
 
 my $timestamp = time;
-my $ns1 = 'ns1.xpanel.net';
-my $ns2 = 'ns2.xpanel.net';
+my $ns1 = $c{'zone_ns1'};
+my $ns2 = $c{'zone_ns2'};
 
 while (my ($id,$tld) = $sth->fetchrow_array) {
 	my $tldRE = $tld;
@@ -111,7 +111,7 @@ while (my ($id,$tld) = $sth->fetchrow_array) {
 			$hname =~ s/$tldRE\.$//i;
 			$hname = '@' if ($hname eq "$tld.");
 
-			if ($type eq 'v4') {
+			if ($addr !~ m{:}) {
 				print OUT "$hname\tIN\tA\t$addr\n";
 			}
 			else {
@@ -125,4 +125,4 @@ while (my ($id,$tld) = $sth->fetchrow_array) {
 }
 $sth->finish;
 
-system("systemctl reload named.service") == 0 or print "Failed to reload named. $! \n";
+system("/usr/sbin/rndc -s nameserver -k /var/named/rndc.key reload >/dev/null") == 0 or print "Failed to reload named. $! \n";

@@ -365,7 +365,7 @@ if ($obj = $xp->find('contact:transfer',$node)->get_node(0)) {
 	elsif ($op eq 'request') {
 		# The contact name must not be within 60 days of its initial registration or within 60 days of being transferred from another registrar. This is an ICANN regulation designed to reduce the incidence of fraudulent transactions.
 		my ($days_from_registration) = $dbh->selectrow_array("SELECT DATEDIFF(CURRENT_TIMESTAMP,`crdate`) FROM `contact` WHERE `id` = '$contact_id' LIMIT 1");
-		if ($days_from_registration < 60) {
+		if ($days_from_registration < $c{'transfer_lock_days'}) {
 			$blob->{resultCode} = 2201; # Authorization error
 			$blob->{human_readable_message} = 'The contact name must not be within 60 days of its initial registration';
 			my $msg = epp_writer($blob);
@@ -376,7 +376,7 @@ if ($obj = $xp->find('contact:transfer',$node)->get_node(0)) {
 
 		my ($last_trdate,$days_from_last_transfer) = $dbh->selectrow_array("SELECT `trdate`, DATEDIFF(CURRENT_TIMESTAMP,`trdate`) AS `intval` FROM `contact` WHERE `id` = '$contact_id' LIMIT 1");
 		if ($last_trdate) {
-			if ($days_from_last_transfer < 60) {
+			if ($days_from_last_transfer < $c{'transfer_lock_days'}) {
 				$blob->{resultCode} = 2201; # Authorization error
 				$blob->{human_readable_message} = 'The contact name must not be within 60 days of its last transfer from another registrar';
 				my $msg = epp_writer($blob);
@@ -427,8 +427,8 @@ if ($obj = $xp->find('contact:transfer',$node)->get_node(0)) {
 		if ((!$trstatus) || ($trstatus ne 'pending')) {
 			# se insereaza dar fara data expirarii dupa procedura de transfer
 			# For an inbound transfer, the contents of the <contact:reID> element will correspond to your registrar ID, and the contents of the <contact:acID> element will correspond to the losing registrar's ID. For an outbound transfer, the reverse is true.
-			my $waiting_period = 5; # days
-			my $sth = $dbh->prepare("UPDATE `contact` SET `trstatus` = 'pending', `reid` = '$registrar_id', `redate` = CURRENT_TIMESTAMP, `acid` = '$registrar_id_contact', `acdate` = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL $waiting_period DAY) WHERE `id` = '$contact_id'") or die $dbh->errstr;
+			my $waiting_period = $c{'transfer_waiting_minutes'}; # minutes
+			my $sth = $dbh->prepare("UPDATE `contact` SET `trstatus` = 'pending', `reid` = '$registrar_id', `redate` = CURRENT_TIMESTAMP, `acid` = '$registrar_id_contact', `acdate` = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL $waiting_period MINUTE) WHERE `id` = '$contact_id'") or die $dbh->errstr;
 			$sth->execute() or die $sth->errstr;
 			if ($sth->err) {
 				my $err = 'UPDATE failed: ' . $sth->errstr;
@@ -845,7 +845,7 @@ elsif ($obj = $xp->find('domain:transfer',$node)->get_node(0)) {
 	elsif ($op eq 'request') {
 		# The domain name must not be within 60 days of its initial registration or within 60 days of being transferred from another registrar. This is an ICANN regulation designed to reduce the incidence of fraudulent transactions.
 		my ($days_from_registration) = $dbh->selectrow_array("SELECT DATEDIFF(CURRENT_TIMESTAMP,`crdate`) FROM `domain` WHERE `id` = '$domain_id' LIMIT 1");
-		if ($days_from_registration < 60) {
+		if ($days_from_registration < $c{'transfer_lock_days'}) {
 			$blob->{resultCode} = 2201; # Authorization error
 			$blob->{human_readable_message} = 'The domain name must not be within 60 days of its initial registration';
 			my $msg = epp_writer($blob);
@@ -856,7 +856,7 @@ elsif ($obj = $xp->find('domain:transfer',$node)->get_node(0)) {
 
 		my ($last_trdate,$days_from_last_transfer) = $dbh->selectrow_array("SELECT `trdate`, DATEDIFF(CURRENT_TIMESTAMP,`trdate`) AS `intval` FROM `domain` WHERE `id` = '$domain_id' LIMIT 1");
 		if ($last_trdate) {
-			if ($days_from_last_transfer < 60) {
+			if ($days_from_last_transfer < $c{'transfer_lock_days'}) {
 				$blob->{resultCode} = 2201; # Authorization error
 				$blob->{human_readable_message} = 'The domain name must not be within 60 days of its last transfer from another registrar';
 				my $msg = epp_writer($blob);
@@ -1019,8 +1019,8 @@ elsif ($obj = $xp->find('domain:transfer',$node)->get_node(0)) {
 
 				# se insereaza cu data expirarii dupa procedura de transfer
 				# For an inbound transfer, the contents of the <domain:reID> element will correspond to your registrar ID, and the contents of the <domain:acID> element will correspond to the losing registrar's ID. For an outbound transfer, the reverse is true.
-				my $waiting_period = 5; # days
-				$sth = $dbh->prepare("UPDATE `domain` SET `trstatus` = 'pending', `reid` = '$registrar_id', `redate` = CURRENT_TIMESTAMP, `acid` = '$registrar_id_domain', `acdate` = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL $waiting_period DAY), `transfer_exdate` = DATE_ADD(`exdate`, INTERVAL $date_add MONTH) WHERE `id` = '$domain_id'") or die $dbh->errstr;
+				my $waiting_period = $c{'transfer_waiting_minutes'}; # minutes
+				$sth = $dbh->prepare("UPDATE `domain` SET `trstatus` = 'pending', `reid` = '$registrar_id', `redate` = CURRENT_TIMESTAMP, `acid` = '$registrar_id_domain', `acdate` = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL $waiting_period MINUTE), `transfer_exdate` = DATE_ADD(`exdate`, INTERVAL $date_add MONTH) WHERE `id` = '$domain_id'") or die $dbh->errstr;
 				$sth->execute() or die $sth->errstr;
 				if ($sth->err) {
 					my $err = 'UPDATE failed: ' . $sth->errstr;
@@ -1062,8 +1062,8 @@ elsif ($obj = $xp->find('domain:transfer',$node)->get_node(0)) {
 			else {
 				# se insereaza dar fara data expirarii dupa procedura de transfer
 				# For an inbound transfer, the contents of the <domain:reID> element will correspond to your registrar ID, and the contents of the <domain:acID> element will correspond to the losing registrar's ID. For an outbound transfer, the reverse is true.
-				my $waiting_period = 5; # days
-				my $sth = $dbh->prepare("UPDATE `domain` SET `trstatus` = 'pending', `reid` = '$registrar_id', `redate` = CURRENT_TIMESTAMP, `acid` = '$registrar_id_domain', `acdate` = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL $waiting_period DAY), `transfer_exdate` = NULL WHERE `id` = '$domain_id'") or die $dbh->errstr;
+				my $waiting_period = $c{'transfer_waiting_minutes'}; # minutes
+				my $sth = $dbh->prepare("UPDATE `domain` SET `trstatus` = 'pending', `reid` = '$registrar_id', `redate` = CURRENT_TIMESTAMP, `acid` = '$registrar_id_domain', `acdate` = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL $waiting_period MINUTE), `transfer_exdate` = NULL WHERE `id` = '$domain_id'") or die $dbh->errstr;
 				$sth->execute() or die $sth->errstr;
 				if ($sth->err) {
 					my $err = 'UPDATE failed: ' . $sth->errstr;

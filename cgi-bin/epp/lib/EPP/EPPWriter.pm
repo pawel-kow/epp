@@ -621,7 +621,7 @@ sub _info_host {
                 }
 
                 foreach my $a (@{$resp->{addr}}) {
-                    $writer->dataElement('host:addr', @{$a}[1], 'ip' => 'v' . ${$a}[0]);
+                    $writer->dataElement('host:addr', @{$a}[1], 'ip' => (${$a}[1] =~ m{:} ? 'v6' : 'v4'));
                 }
                 $writer->dataElement('host:clID', $resp->{clID});
                 $writer->dataElement('host:crID', $resp->{crID});
