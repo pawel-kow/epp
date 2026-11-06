@@ -38,7 +38,7 @@ use EPP::Date qw(:all);
 use vars qw(%c $dbh $q);
 *c = \%EPP::Config::c;
 $q = new CGI;
-$dbh = DBI->connect("DBI:mysql:$c{'mysql_database'}:$c{'mysql_host'}:$c{'mysql_port'}","$c{'mysql_username'}","$c{'mysql_password'}") or die "$DBI::errstr";
+$dbh = DBI->connect("DBI:mysql:$c{'mysql_database'}:$c{'mysql_host'}:$c{'mysql_port'}","$c{'mysql_username'}","$c{'mysql_password'}",{mysql_enable_utf8 => 1}) or die "$DBI::errstr";
 
 print header('application/epp+xml');
 

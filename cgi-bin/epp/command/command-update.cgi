@@ -30,6 +30,7 @@ use strict;
 use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
+use EPP::PostalInfo;
 use EPP::Transaction;
 use EPP::SecDNS;
 use CGI qw(:standard);
@@ -40,7 +41,7 @@ use EPP::Date qw(:all);
 use vars qw(%c $dbh $q);
 *c = \%EPP::Config::c;
 $q = new CGI;
-$dbh = DBI->connect("DBI:mysql:$c{'mysql_database'}:$c{'mysql_host'}:$c{'mysql_port'}","$c{'mysql_username'}","$c{'mysql_password'}") or die "$DBI::errstr";
+$dbh = DBI->connect("DBI:mysql:$c{'mysql_database'}:$c{'mysql_host'}:$c{'mysql_port'}","$c{'mysql_username'}","$c{'mysql_password'}",{mysql_enable_utf8 => 1}) or die "$DBI::errstr";
 
 print header('application/epp+xml');
 
@@ -442,7 +443,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 
 		if ($postalInfo_loc) {
 			if ($postalInfo_loc_name) {
-				if ($postalInfo_loc_name =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_name !~ /^[a-zA-Z0-9\-\&\,\.\/\s]{5,}$/) {
+				if ($postalInfo_loc_name =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_name !~ $LOC_TEXT) {
 					$blob->{resultCode} = 2005; # Parameter value syntax error
 					$blob->{human_readable_message} = 'Invalid contact:name';
 						$blob->{optionalValue} = 1;
@@ -458,7 +459,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 			}
 
 			if ($postalInfo_loc_org) {
-				if ($postalInfo_loc_org =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_org !~ /^[a-zA-Z0-9\-\&\,\.\/\s]{5,}$/) {
+				if ($postalInfo_loc_org =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_org !~ $LOC_TEXT) {
 					$blob->{resultCode} = 2005; # Parameter value syntax error
 					$blob->{human_readable_message} = 'Invalid contact:org';
 						$blob->{optionalValue} = 1;
@@ -474,7 +475,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 			}
 
 			if ($postalInfo_loc_street1) {
-				if ($postalInfo_loc_street1 =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_street1 !~ /^[a-zA-Z0-9\-\&\,\.\/\s]{5,}$/) {
+				if ($postalInfo_loc_street1 =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_street1 !~ $LOC_TEXT) {
 					$blob->{resultCode} = 2005; # Parameter value syntax error
 					$blob->{human_readable_message} = 'Invalid contact:street';
 						$blob->{optionalValue} = 1;
@@ -490,7 +491,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 			}
 
 			if ($postalInfo_loc_street2) {
-				if ($postalInfo_loc_street2 =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_street2 !~ /^[a-zA-Z0-9\-\&\,\.\/\s]{5,}$/) {
+				if ($postalInfo_loc_street2 =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_street2 !~ $LOC_TEXT) {
 					$blob->{resultCode} = 2005; # Parameter value syntax error
 					$blob->{human_readable_message} = 'Invalid contact:street';
 						$blob->{optionalValue} = 1;
@@ -506,7 +507,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 			}
 
 			if ($postalInfo_loc_street3) {
-				if ($postalInfo_loc_street3 =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_street3 !~ /^[a-zA-Z0-9\-\&\,\.\/\s]{5,}$/) {
+				if ($postalInfo_loc_street3 =~ /(^\-)|(^\,)|(^\.)|(\-\-)|(\,\,)|(\.\.)|(\-$)/ || $postalInfo_loc_street3 !~ $LOC_TEXT) {
 					$blob->{resultCode} = 2005; # Parameter value syntax error
 					$blob->{human_readable_message} = 'Invalid contact:street';
 						$blob->{optionalValue} = 1;
@@ -522,7 +523,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 			}
 
 			if ($postalInfo_loc_addr) {
-				if ($postalInfo_loc_city =~ /(^\-)|(^\.)|(\-\-)|(\.\.)|(\.\-)|(\-\.)|(\-$)|(\.$)/ || $postalInfo_loc_city !~ /^[a-z][a-z\-\.\s]{3,}$/i) {
+				if ($postalInfo_loc_city =~ /(^\-)|(^\.)|(\-\-)|(\.\.)|(\.\-)|(\-\.)|(\-$)|(\.$)/ || $postalInfo_loc_city !~ $LOC_CITY) {
 					$blob->{resultCode} = 2005; # Parameter value syntax error
 					$blob->{human_readable_message} = 'Invalid contact:city';
 						$blob->{optionalValue} = 1;
@@ -538,7 +539,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 			}
 
 			if ($postalInfo_loc_sp) {
-				if ($postalInfo_loc_sp =~ /(^\-)|(^\.)|(\-\-)|(\.\.)|(\.\-)|(\-\.)|(\-$)|(\.$)/ || $postalInfo_loc_sp !~ /^[A-Z][a-zA-Z\-\.\s]{1,}$/) {
+				if ($postalInfo_loc_sp =~ /(^\-)|(^\.)|(\-\-)|(\.\.)|(\.\-)|(\-\.)|(\-$)|(\.$)/ || $postalInfo_loc_sp !~ $LOC_SP) {
 					$blob->{resultCode} = 2005; # Parameter value syntax error
 					$blob->{human_readable_message} = 'Invalid contact:sp';
 						$blob->{optionalValue} = 1;

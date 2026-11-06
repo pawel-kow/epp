@@ -29,9 +29,14 @@ use XML::Writer;
 use EPP::Version;
 use EPP::EPPResultCode;
 use EPP::Date(date_epp);
+use Encode ();
 
 use strict;
 use warnings;
+
+# Replies are built from character strings and declared as UTF-8. Without a layer, print writes
+# anything that fits in Latin-1 as Latin-1.
+binmode(STDOUT, ':encoding(UTF-8)');
 
 BEGIN {
 	use Exporter ();
@@ -165,7 +170,8 @@ sub _postamble {
 
     if (defined($resp->{clTRID}) || defined($resp->{svTRID})) {
         $writer->startTag('trID');
-            $writer->dataElement('clTRID', $resp->{clTRID}) if (length($resp->{clTRID} // ''));
+            # The only value here that comes from CGI as bytes rather than from the XML parser or the DB
+            $writer->dataElement('clTRID', Encode::decode('UTF-8', $resp->{clTRID})) if (length($resp->{clTRID} // ''));
             $writer->dataElement('svTRID', $resp->{svTRID});
         $writer->endTag(); # </trID>
     }
