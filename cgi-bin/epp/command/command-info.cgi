@@ -31,6 +31,7 @@ use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
 use EPP::Transaction;
+use EPP::SecDNS;
 use CGI qw(:standard);
 use XML::XPath;
 use DBI;
@@ -384,6 +385,7 @@ elsif ($obj = $xp->find('domain:info',$node)->get_node(0)) {
 	if ($rgpstatus) {
 		$blob->{rgpstatus} = $rgpstatus;
 	}
+	$blob->{secDNS} = secdns_info($dbh,$domain_id);
 	my $msg = epp_writer($blob);
 	print $msg;
 	my $uptr = update_transaction($msg);

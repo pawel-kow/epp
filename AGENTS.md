@@ -17,7 +17,7 @@ There is no build system, test suite or linter. Perl cannot run outside the cont
 | `cgi-bin/epp/command/` | `command-{check,create,delete,info,poll,renew,transfer,update}.cgi`: one script per EPP command, each handling the domain, contact and host objects. `create` and `update` are about 2,000 lines each. |
 | `cgi-bin/epp/session/` | `session-{hello,login,logout}.cgi` |
 | `cgi-bin/epp/error/` | `error-*.cgi`: response generators for the errors `mod_epp` detects (schema, parse, login, protocol, auth required, internal) |
-| `cgi-bin/epp/lib/EPP/` | `Config.pm` (parses `registry.conf` into `%EPP::Config::c`), `EPPWriter.pm` (builds the response XML), `EPPResultCode.pm`, `Transaction.pm`, `Date.pm`, `Version.pm` |
+| `cgi-bin/epp/lib/EPP/` | `Config.pm` (parses `registry.conf` into `%EPP::Config::c`), `EPPWriter.pm` (builds the response XML), `EPPResultCode.pm`, `SecDNS.pm` (RFC 5910 DS data), `Transaction.pm`, `Date.pm`, `Version.pm` |
 | `cgi-bin/epp/cron/` | `write-zone.pl`, `change-domain-status.pl`, `auto-approve-transfer.pl`, `auto-clean-unused-contact-and-host.pl`, `statistics.pl`, `send-invoice.pl`, with mail and PDF templates in `src/` |
 | `cgi-bin/epp/htpasswd/.htpasswd` | Sample Basic-auth file; unused when auth goes through `mod_authn_dbd` |
 | `cgi-bin/{whois,das}/` | PHP WHOIS and DAS front ends |
@@ -46,6 +46,9 @@ There is no build system, test suite or linter. Perl cannot run outside the cont
 - `write-zone.pl` reloads BIND with `rndc -s nameserver`, which assumes the parent's `nameserver` service and the `rndc.key` it generates in `/var/named`.
 - `host_addr.ip` must be stored as `v4` or `v6`. Upstream's `$addr_type =~ s/\D//g;` in `command-create.cgi` made MariaDB store an empty enum, so `write-zone.pl` and `EPPWriter.pm` derive the type from the address to cope with old rows.
 - Contact IDs must start with the registrar's `prefix` plus `-`. `prefix` is `char(2)` and unique.
+- `EPP/SecDNS.pm` offers the RFC 5910 DS data interface only: `keyData` on its own answers `2306`. The `secdns` columns set two more limits, both `2306`: no digest type 4 (`digest` is `varchar(64)`) and no `pubKey` over 255 characters. `maxSigLife` is stored on each row, so it cannot be set on a domain without DS data. `write-zone.pl` does not publish DS records yet.
+- `secdns` has a `RESTRICT` foreign key on `domain`, so anything that deletes a domain must clear it first.
+- `command-info.cgi` is not valid UTF-8. Edit it as bytes.
 
 ## Working with the submodule
 

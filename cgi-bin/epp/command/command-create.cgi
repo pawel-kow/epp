@@ -31,6 +31,7 @@ use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
 use EPP::Transaction;
+use EPP::SecDNS;
 use CGI qw(:standard);
 use XML::XPath;
 use Email::Valid;
@@ -1580,6 +1581,16 @@ elsif ($obj = $xp->find('domain:create',$node)->get_node(0)) {
 
 
 
+	my ($secdns,$secdns_error) = secdns_parse_create($xp,$node_extension);
+	if ($secdns_error) {
+		$blob->{resultCode} = $secdns_error->{code};
+		$blob->{human_readable_message} = $secdns_error->{message};
+		my $msg = epp_writer($blob);
+		print $msg;
+		my $uptr = update_transaction($msg);
+		exit;
+	}
+
 	my ($registrant_id) = $dbh->selectrow_array("SELECT `id` FROM `contact` WHERE `identifier` = '$registrant' LIMIT 1");
 
 	$sth = $dbh->prepare("INSERT INTO `domain` (`name`,`tldid`,`registrant`,`crdate`,`exdate`,`update`,`clid`,`crid`,`upid`,`trdate`,`trstatus`,`reid`,`redate`,`acid`,`acdate`,`rgpstatus`,`addPeriod`) VALUES(?,?,?,CURRENT_TIMESTAMP,DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? MONTH),NULL,?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'addPeriod',?)") or die $dbh->errstr;
@@ -1588,6 +1599,10 @@ elsif ($obj = $xp->find('domain:create',$node)->get_node(0)) {
 
 	$sth = $dbh->prepare("INSERT INTO `domain_authInfo` (`domain_id`,`authtype`,`authinfo`) VALUES(?,?,?)") or die $dbh->errstr;
 	$sth->execute($domain_id,'pw',$authInfo_pw) or die $sth->errstr;
+
+	if ($secdns) {
+		secdns_store($dbh,$domain_id,$secdns->{dsData},$secdns->{maxSigLife});
+	}
 
 	#_________________________________________________________________________________________________________________
 	$sth = $dbh->prepare("UPDATE `registrar` SET `accountBalance` = (`accountBalance` - ?) WHERE `id` = ?") or die $dbh->errstr;

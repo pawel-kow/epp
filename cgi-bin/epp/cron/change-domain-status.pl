@@ -245,6 +245,7 @@ while (my ($domain_id,$name,$exdate) = $sth_delete->fetchrow_array) {
 		$dbh->do("DELETE FROM `domain_host_map` WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;
 		$dbh->do("DELETE FROM `domain_authInfo` WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;
 		$dbh->do("DELETE FROM `domain_status` WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;
+		$dbh->do("DELETE FROM `secdns` WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;
 		$dbh->do("DELETE FROM `host` WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;
 
 		$sth = $dbh->prepare("DELETE FROM `domain` WHERE `id` = ?");

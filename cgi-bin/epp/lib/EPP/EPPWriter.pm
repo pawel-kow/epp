@@ -509,6 +509,29 @@ sub _info_domain {
             $writer->startTag('rgp:infData', 'xmlns:rgp' => 'urn:ietf:params:xml:ns:rgp-1.0', 'xsi:schemaLocation' => 'urn:ietf:params:xml:ns:rgp-1.0 rgp-1.0.xsd');
 				$writer->emptyTag('rgp:rgpStatus', 's' => $resp->{rgpstatus});
             $writer->endTag(); # </rgp:infData>
+            if ($resp->{secDNS}) {
+                $writer->startTag('secDNS:infData', 'xmlns:secDNS' => 'urn:ietf:params:xml:ns:secDNS-1.1', 'xsi:schemaLocation' => 'urn:ietf:params:xml:ns:secDNS-1.1 secDNS-1.1.xsd');
+                    if (defined($resp->{secDNS}{maxSigLife})) {
+                        $writer->dataElement('secDNS:maxSigLife', $resp->{secDNS}{maxSigLife});
+                    }
+                    foreach my $ds (@{$resp->{secDNS}{dsData}}) {
+                        $writer->startTag('secDNS:dsData');
+                            $writer->dataElement('secDNS:keyTag', $ds->{keyTag});
+                            $writer->dataElement('secDNS:alg', $ds->{alg});
+                            $writer->dataElement('secDNS:digestType', $ds->{digestType});
+                            $writer->dataElement('secDNS:digest', $ds->{digest});
+                            if ($ds->{keyData}) {
+                                $writer->startTag('secDNS:keyData');
+                                    $writer->dataElement('secDNS:flags', $ds->{keyData}{flags});
+                                    $writer->dataElement('secDNS:protocol', $ds->{keyData}{protocol});
+                                    $writer->dataElement('secDNS:alg', $ds->{keyData}{alg});
+                                    $writer->dataElement('secDNS:pubKey', $ds->{keyData}{pubKey});
+                                $writer->endTag(); # </secDNS:keyData>
+                            }
+                        $writer->endTag(); # </secDNS:dsData>
+                    }
+                $writer->endTag(); # </secDNS:infData>
+            }
         $writer->endTag(); # </extension>
 # -------------------
     }

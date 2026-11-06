@@ -31,6 +31,7 @@ use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
 use EPP::Transaction;
+use EPP::SecDNS;
 use CGI qw(:standard);
 use XML::XPath;
 use Email::Valid;
@@ -1504,6 +1505,16 @@ elsif ($obj = $xp->find('domain:update',$update_node)->get_node(0)) {
 
 
 
+	my ($secdns,$secdns_error) = secdns_parse_update($xp,$extension_node,$dbh,$domain_id);
+	if ($secdns_error) {
+		$blob->{resultCode} = $secdns_error->{code};
+		$blob->{human_readable_message} = $secdns_error->{message};
+		my $msg = epp_writer($blob);
+		print $msg;
+		my $uptr = update_transaction($msg);
+		exit;
+	}
+
 	# aici facem update deja
 	#_________________________________________________________________________________________________________________
 	if ($domain_rem && $xp->find('./*', $domain_rem)->size > 0) {
@@ -1822,6 +1833,11 @@ elsif ($obj = $xp->find('domain:update',$update_node)->get_node(0)) {
 				exit;
 			}
 		}
+	}
+
+	if ($secdns) {
+		secdns_apply_update($dbh,$domain_id,$secdns);
+		$dbh->do("UPDATE `domain` SET `update` = CURRENT_TIMESTAMP, `upid` = '$registrar_id' WHERE `id` = '$domain_id'") or die $dbh->errstr;
 	}
 
 	my $msg = epp_writer($blob);
