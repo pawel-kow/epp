@@ -206,6 +206,7 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 			exit;
 		}
 
+		my %seen_status;
 		foreach my $node ($status_list->get_nodelist) {
 			my $status = $node->string_value;
 			if ($status !~ /^(clientDeleteProhibited|clientTransferProhibited|clientUpdateProhibited)$/) {
@@ -217,9 +218,11 @@ if ($obj = $xp->find('contact:update',$update_node)->get_node(0)) {
 				exit;
 			}
 
-			if ($xp->find('contact:status[@s="'.$status.'"]', $contact_rem)->size == 0) {
+			# Listed twice in one command, the second INSERT would hit the unique key
+			my $repeated = $seen_status{$status}++;
+			if ($repeated || $xp->find('contact:status[@s="'.$status.'"]', $contact_rem)->size == 0) {
 				my ($contact_status_id) = $dbh->selectrow_array("SELECT `id` FROM `contact_status` WHERE `contact_id` = '$contact_id' AND `status` = '$status' LIMIT 1");
-				if ($contact_status_id) {
+				if ($repeated || $contact_status_id) {
 					$blob->{resultCode} = 2306; # Parameter value policy error
 					$blob->{human_readable_message} = "This status '$status' already exists for this contact";
 						$blob->{optionalValue} = 1;
@@ -1018,6 +1021,7 @@ elsif ($obj = $xp->find('domain:update',$update_node)->get_node(0)) {
 			exit;
 		}
 
+		my %seen_status;
 		foreach my $node ($status_list->get_nodelist) {
 			my $status = $node->string_value;
 			if ($status !~ /^(clientDeleteProhibited|clientHold|clientRenewProhibited|clientTransferProhibited|clientUpdateProhibited)$/) {
@@ -1029,9 +1033,11 @@ elsif ($obj = $xp->find('domain:update',$update_node)->get_node(0)) {
 				exit;
 			}
 
-			if ($xp->find('domain:status[@s="'.$status.'"]', $domain_rem)->size == 0) {
+			# Listed twice in one command, the second INSERT would hit the unique key
+			my $repeated = $seen_status{$status}++;
+			if ($repeated || $xp->find('domain:status[@s="'.$status.'"]', $domain_rem)->size == 0) {
 				my ($domain_status_id) = $dbh->selectrow_array("SELECT `id` FROM `domain_status` WHERE `domain_id` = '$domain_id' AND `status` = '$status' LIMIT 1");
-				if ($domain_status_id) {
+				if ($repeated || $domain_status_id) {
 					$blob->{resultCode} = 2306; # Parameter value policy error
 					$blob->{human_readable_message} = "This status '$status' already exists for this domain";
 						$blob->{optionalValue} = 1;
@@ -1952,6 +1958,7 @@ elsif ($obj = $xp->find('host:update',$update_node)->get_node(0)) {
 			exit;
 		}
 
+		my %seen_status;
 		foreach my $node ($status_list->get_nodelist) {
 			my $status = $node->string_value;
 			if ($status !~ /^(clientDeleteProhibited|clientUpdateProhibited)$/) {
@@ -1963,9 +1970,11 @@ elsif ($obj = $xp->find('host:update',$update_node)->get_node(0)) {
 				exit;
 			}
 
-			if ($xp->find('host:status[@s="'.$status.'"]', $host_rem)->size == 0) {
+			# Listed twice in one command, the second INSERT would hit the unique key
+			my $repeated = $seen_status{$status}++;
+			if ($repeated || $xp->find('host:status[@s="'.$status.'"]', $host_rem)->size == 0) {
 				my ($contact_status_id) = $dbh->selectrow_array("SELECT `id` FROM `host_status` WHERE `host_id` = '$host_id' AND `status` = '$status' LIMIT 1");
-				if ($contact_status_id) {
+				if ($repeated || $contact_status_id) {
 					$blob->{resultCode} = 2306; # Parameter value policy error
 					$blob->{human_readable_message} = "This status '$status' already exists for this host";
 						$blob->{optionalValue} = 1;
@@ -1981,6 +1990,14 @@ elsif ($obj = $xp->find('host:update',$update_node)->get_node(0)) {
 			}
 		}
 
+		# <host:rem> runs first, so an address it deletes can be added back. Its DELETE uses the text and type as sent.
+		my (%removed_addr, %seen_addr);
+		if ($host_rem) {
+			foreach my $node ($xp->find('host:addr', $host_rem)->get_nodelist) {
+				$removed_addr{lc($node->string_value) . '/' . ($node->findvalue('@ip[1]') || 'v4')} = 1;
+			}
+		}
+
 		foreach my $node ($addr_list->get_nodelist) {
 			my $addr = $node->string_value;
 			my $addr_type = $node->findvalue('@ip[1]') || 'v4';
@@ -1989,8 +2006,7 @@ elsif ($obj = $xp->find('host:update',$update_node)->get_node(0)) {
 					# true
 					$addr = _normalise_v6_address($addr);
 					# aceasta combinatie trebuie sa fie unica
-					my ($ipv6_addr_already_exists) = $dbh->selectrow_array("SELECT `id` FROM `host_addr` WHERE `host_id` = '$host_id' AND `addr` = '$addr' AND `ip` = '6' LIMIT 1");
-					if ($ipv6_addr_already_exists) {
+					if (_host_addr_taken($host_id,$addr,$addr_type,\%removed_addr,\%seen_addr)) {
 						$blob->{resultCode} = 2306; # Parameter value policy error
 						$blob->{human_readable_message} = "This addr '$addr' already exists for this host";
 							$blob->{optionalValue} = 1;
@@ -2024,8 +2040,7 @@ elsif ($obj = $xp->find('host:update',$update_node)->get_node(0)) {
 					# true
 					$addr = _normalise_v4_address($addr);
 					# aceasta combinatie trebuie sa fie unica
-					my ($ipv4_addr_already_exists) = $dbh->selectrow_array("SELECT `id` FROM `host_addr` WHERE `host_id` = '$host_id' AND `addr` = '$addr' AND `ip` = '4' LIMIT 1");
-					if ($ipv4_addr_already_exists) {
+					if (_host_addr_taken($host_id,$addr,$addr_type,\%removed_addr,\%seen_addr)) {
 						$blob->{resultCode} = 2306; # Parameter value policy error
 						$blob->{human_readable_message} = "This addr '$addr' already exists for this host";
 							$blob->{optionalValue} = 1;
@@ -2266,6 +2281,20 @@ else {
 	my $uptr = update_transaction($msg);
 }
 
+
+# True when a normalised address from <host:add> cannot be inserted: it came earlier in the same
+# command, or the host has it and <host:rem> does not delete it. The stored type is left out of
+# the lookup because rows from before the type was stored correctly hold an empty one.
+sub _host_addr_taken {
+	my ($host_id, $addr, $addr_type, $removed, $seen) = @_;
+
+	return 1 if $seen->{lc($addr)}++;
+
+	my ($stored_type) = $dbh->selectrow_array("SELECT `ip` FROM `host_addr` WHERE `host_id` = ? AND `addr` = ? LIMIT 1", undef, $host_id, $addr);
+	return 0 unless defined($stored_type);
+
+	return !($stored_type eq $addr_type && $removed->{lc($addr) . "/$addr_type"});
+}
 
 sub _normalise_v4_address {
 	my ($v4) = @_;
