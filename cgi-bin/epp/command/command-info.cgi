@@ -31,6 +31,7 @@ use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
 use EPP::Transaction;
+use EPP::IDN;
 use EPP::SecDNS;
 use CGI qw(:standard);
 use XML::XPath;
@@ -386,6 +387,7 @@ elsif ($obj = $xp->find('domain:info',$node)->get_node(0)) {
 		$blob->{rgpstatus} = $rgpstatus;
 	}
 	$blob->{secDNS} = secdns_info($dbh,$domain_id);
+	$blob->{idn} = idn_info($dbh,$domain_id);
 	my $msg = epp_writer($blob);
 	print $msg;
 	my $uptr = update_transaction($msg);
@@ -551,16 +553,14 @@ sub validate_label {
 	if ($label =~ /[^A-Z0-9\-]/) {
 		return 'Invalid domain name format';
 	}
-	if ($label =~ /^xn--/) {
-		if ($label =~ /^-|-$|\.$/) {
-			return 'Invalid domain name format, cannot begin or end with a hyphen (-)';
-		}
+	# Labels reach here in uppercase
+	if ($label =~ /^XN--/) {
+		return idn_alabel_error($label);
 	}
-	else {
-		if ($label =~ /^-|--|-$|\.$/) {
-			return 'Invalid domain name format, cannot begin or end with a hyphen (-)';
-		}
+	if ($label =~ /^-|--|-$|\.$/) {
+		return 'Invalid domain name format, cannot begin or end with a hyphen (-)';
 	}
+	return undef;
 }
 
 sub update_transaction {

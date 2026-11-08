@@ -31,6 +31,7 @@ use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
 use EPP::Transaction;
+use EPP::IDN;
 use CGI qw(:standard);
 use XML::XPath;
 use DBI;
@@ -254,16 +255,14 @@ sub validate_label {
 	if ($label =~ /[^A-Z0-9\-]/) {
 		return 'Invalid domain name format';
 	}
-	if ($label =~ /^xn--/) {
-		if ($label =~ /^-|-$|\.$/) {
-			return 'Invalid domain name format, cannot begin or end with a hyphen (-)';
-		}
+	# Labels reach here in uppercase
+	if ($label =~ /^XN--/) {
+		return idn_alabel_error($label);
 	}
-	else {
-		if ($label =~ /^-|--|-$|\.$/) {
-			return 'Invalid domain name format, cannot begin or end with a hyphen (-)';
-		}
+	if ($label =~ /^-|--|-$|\.$/) {
+		return 'Invalid domain name format, cannot begin or end with a hyphen (-)';
 	}
+	return undef;
 }
 
 sub update_transaction {

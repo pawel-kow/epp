@@ -59,7 +59,7 @@ our @_OBJURIS = (
 our @_EXTENSIONS = (
 	'urn:ietf:params:xml:ns:rgp-1.0',
 	'urn:ietf:params:xml:ns:secDNS-1.1',
-	'http://www.verisign.com/epp/idnLang-1.0',
+	'urn:ietf:params:xml:ns:idn-1.0',
 	'http://www.nic.xx/XXNIC-EPP/identExt-1.0' );
 
 sub SRS_VERSION {

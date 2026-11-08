@@ -538,6 +538,14 @@ sub _info_domain {
                     }
                 $writer->endTag(); # </secDNS:infData>
             }
+            if ($resp->{idn}) {
+                $writer->startTag('idn:data', 'xmlns:idn' => 'urn:ietf:params:xml:ns:idn-1.0');
+                    $writer->dataElement('idn:table', $resp->{idn}{table});
+                    if (defined($resp->{idn}{uname})) {
+                        $writer->dataElement('idn:uname', $resp->{idn}{uname});
+                    }
+                $writer->endTag(); # </idn:data>
+            }
         $writer->endTag(); # </extension>
 # -------------------
     }
