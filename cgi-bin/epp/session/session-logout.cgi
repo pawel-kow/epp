@@ -31,6 +31,7 @@ use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
 use EPP::Transaction;
+use EPP::Session;
 use CGI qw(:standard);
 use XML::XPath;
 use DBI;
@@ -63,6 +64,8 @@ my $transaction_id = $dbh->last_insert_id(undef, undef, undef, undef);
 
 my $date_for_svtrid = date_for_svtrid();
 $blob->{svTRID} = $date_for_svtrid . '-clID:' . $registrar_id . '-epp:logout';
+
+session_end($dbh);
 
 my $msg = epp_writer($blob);
 print $msg;

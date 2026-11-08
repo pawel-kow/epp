@@ -179,6 +179,14 @@ sub _postamble {
 }
 
 
+# Whether the reply may carry the extension $uri. $resp->{exturis} holds the extURIs the client
+# chose at login (EPP::Session). Without it the choice is unknown, and every extension goes out.
+sub _chosen {
+    my ($resp, $uri) = @_;
+    return 1 unless (defined($resp->{exturis}));
+    return $resp->{exturis}{$uri} ? 1 : 0;
+}
+
 sub _common {
     my ($writer, $resp) = @_;
 
@@ -349,11 +357,13 @@ sub _info_contact {
             $writer->endTag(); # </contact:infData>
         $writer->endTag(); # </resData>
 # -------------------
+        if (_chosen($resp, 'http://www.nic.xx/XXNIC-EPP/identExt-1.0')) {
         $writer->startTag('extension');
             $writer->startTag('identExt:infData', 'xmlns:identExt' => 'http://www.nic.xx/XXNIC-EPP/identExt-1.0', 'xsi:schemaLocation' => 'http://www.nic.xx/XXNIC-EPP/identExt-1.0 identExt-1.0.xsd');
 				$writer->dataElement('identExt:nin', $resp->{nin}, 'type' => $resp->{nin_type});
             $writer->endTag(); # </identExt:infData>
         $writer->endTag(); # </extension>
+        }
 # -------------------
     }
 
@@ -511,11 +521,17 @@ sub _info_domain {
             $writer->endTag(); # </domain:infData>
         $writer->endTag(); # </resData>
 # -------------------
+        my $rgp = _chosen($resp, 'urn:ietf:params:xml:ns:rgp-1.0');
+        my $secdns = $resp->{secDNS} && _chosen($resp, 'urn:ietf:params:xml:ns:secDNS-1.1');
+        my $idn = $resp->{idn} && _chosen($resp, 'urn:ietf:params:xml:ns:idn-1.0');
+        if ($rgp || $secdns || $idn) {
         $writer->startTag('extension');
+            if ($rgp) {
             $writer->startTag('rgp:infData', 'xmlns:rgp' => 'urn:ietf:params:xml:ns:rgp-1.0', 'xsi:schemaLocation' => 'urn:ietf:params:xml:ns:rgp-1.0 rgp-1.0.xsd');
 				$writer->emptyTag('rgp:rgpStatus', 's' => $resp->{rgpstatus});
             $writer->endTag(); # </rgp:infData>
-            if ($resp->{secDNS}) {
+            }
+            if ($secdns) {
                 $writer->startTag('secDNS:infData', 'xmlns:secDNS' => 'urn:ietf:params:xml:ns:secDNS-1.1', 'xsi:schemaLocation' => 'urn:ietf:params:xml:ns:secDNS-1.1 secDNS-1.1.xsd');
                     if (defined($resp->{secDNS}{maxSigLife})) {
                         $writer->dataElement('secDNS:maxSigLife', $resp->{secDNS}{maxSigLife});
@@ -538,7 +554,7 @@ sub _info_domain {
                     }
                 $writer->endTag(); # </secDNS:infData>
             }
-            if ($resp->{idn}) {
+            if ($idn) {
                 $writer->startTag('idn:data', 'xmlns:idn' => 'urn:ietf:params:xml:ns:idn-1.0');
                     $writer->dataElement('idn:table', $resp->{idn}{table});
                     if (defined($resp->{idn}{uname})) {
@@ -547,6 +563,7 @@ sub _info_domain {
                 $writer->endTag(); # </idn:data>
             }
         $writer->endTag(); # </extension>
+        }
 # -------------------
     }
 

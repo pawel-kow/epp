@@ -31,6 +31,7 @@ use warnings;
 use EPP::Config();
 use EPP::EPPWriter;
 use EPP::Transaction;
+use EPP::Session;
 use CGI qw(:standard);
 use XML::XPath;
 use DBI;
@@ -169,6 +170,8 @@ if ($clID_id == $registrar_id) {
 		close HTPASSWD;
 		$sth_htpasswd->finish;
 	}
+	# The objURI and extURI lists select the services for this connection
+	session_start($dbh,$clID_id,$xp,$node);
 	my $msg = epp_writer($blob);
 	print $msg;
 	my $uptr = update_transaction($msg);

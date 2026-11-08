@@ -25,6 +25,7 @@ package EPP::Transaction;
 
 use EPP::EPPWriter;
 use EPP::Date qw(date_for_svtrid);
+use EPP::Session;
 use Digest::SHA qw(sha1_hex);
 
 use strict;
@@ -64,7 +65,12 @@ sub record_cl_transaction {
 		$cltrid = length($stored) <= CLTRID_COLUMN_LENGTH ? $stored : "$registrar_id:" . sha1_hex($cltrid);
 	}
 
-	return if ($sth->execute($registrar_id,$cltrid,$frame,$cldate,$clmicrosecond));
+	if ($sth->execute($registrar_id,$cltrid,$frame,$cldate,$clmicrosecond)) {
+		# Every command passes through here, so this is where the reply learns which extensions
+		# the client chose at login. EPPWriter leaves out the others.
+		$blob->{exturis} = session_extensions($sth->{Database});
+		return;
+	}
 
 	$blob->{human_readable_message} = 'clTRID already used' if ($sth->err == MYSQL_DUPLICATE_ENTRY);
 	$blob->{resultCode} = 2400; # Command failed

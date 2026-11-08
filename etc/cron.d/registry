@@ -21,4 +21,7 @@
  # run auto-clean-unused-contact-and-host.pl every day
 5 0 * * *	root	/var/www/cgi-bin/epp/cron/auto-clean-unused-contact-and-host.pl >> /var/log/epp/auto-clean-unused-contact-and-host.log
 
+ # run clean-epp-sessions.pl every hour
+15 * * * *	root	/var/www/cgi-bin/epp/cron/clean-epp-sessions.pl >> /var/log/epp/clean-epp-sessions.log
+
 #----------> End Crontab Configuration for EPP Server <----------------------------#
