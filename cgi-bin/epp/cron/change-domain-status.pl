@@ -64,7 +64,7 @@ if ($auto_renew) {
 
 			if (($registrar_balance + $creditLimit) > $price) {
 				#_________________________________________________________________________________________________________________
-				$dbh->do("UPDATE `domain` SET `rgpstatus` = 'autoRenewPeriod', `exdate` = DATE_ADD(`exdate`, INTERVAL 12 MONTH), `autoRenewPeriod` = '12', `renewedDate` = `exdate` WHERE `id` = '$domain_id'") or die $dbh->errstr;
+				$dbh->do("UPDATE `domain` SET `rgpstatus` = 'autoRenewPeriod', `renewedDate` = `exdate`, `exdate` = DATE_ADD(`exdate`, INTERVAL 12 MONTH), `autoRenewPeriod` = '12' WHERE `id` = '$domain_id'") or die $dbh->errstr;
 
 				#_________________________________________________________________________________________________________________
 				$dbh->do("UPDATE `registrar` SET `accountBalance` = (`accountBalance` - $price) WHERE `id` = '$clid'") or die $dbh->errstr;
@@ -98,12 +98,12 @@ if ($auto_renew) {
 	$sth_autorenewperiod->finish;
 }
 else {
-	my $grace_period = 30;
+	my $grace_period = $c{'rgp_expiry_grace_minutes'}; # upstream: 30 days
 
 	# We currently endeavor to provide a grace period that extends 30 days past the expiration date, to allow the renewal of domain name registration services.
 	# During this period a customer can renew a domain name registration; however, a grace period is not guaranteed and can change or be eliminated at any time without notice.
 	# Consequently, every customer who desires to renew his or her domain name registration services should do so in advance of the expiration date to avoid any unintended domain name deletion.
-	my $sth_graceperiod = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE CURRENT_TIMESTAMP > DATE_ADD(`exdate`, INTERVAL $grace_period DAY) AND `rgpstatus` IS NULL") or die $dbh->errstr;
+	my $sth_graceperiod = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE CURRENT_TIMESTAMP > DATE_ADD(`exdate`, INTERVAL $grace_period MINUTE) AND `rgpstatus` IS NULL") or die $dbh->errstr;
 	$sth_graceperiod->execute() or die $sth_graceperiod->errstr;
 
 	while (my ($domain_id,$name,$exdate) = $sth_graceperiod->fetchrow_array) {
@@ -122,7 +122,7 @@ else {
 
 		if ($set_graceperiod) {
 			$dbh->do("DELETE FROM `domain_status` WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;
-			$dbh->do("UPDATE `domain` SET `rgpstatus` = 'redemptionPeriod', `delTime` = DATE_ADD(`exdate`, INTERVAL $grace_period DAY) WHERE `id` = '$domain_id'") or die $dbh->errstr;
+			$dbh->do("UPDATE `domain` SET `rgpstatus` = 'redemptionPeriod', `delTime` = DATE_ADD(`exdate`, INTERVAL $grace_period MINUTE) WHERE `id` = '$domain_id'") or die $dbh->errstr;
 			$dbh->do("INSERT INTO `domain_status` (`domain_id`,`status`) VALUES('$domain_id','pendingDelete')") or die $dbh->errstr;
 		}
 
@@ -137,18 +137,20 @@ else {
 
 
 
-# clean autoRenewPeriod after 45 days _________________________________________________________________________________________________________________
-$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`exdate`, INTERVAL 45 DAY) AND `rgpstatus` = 'autoRenewPeriod'") or die $dbh->errstr;
-$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`crdate`, INTERVAL 5 DAY) AND `rgpstatus` = 'addPeriod'") or die $dbh->errstr;
-$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`renewedDate`, INTERVAL 5 DAY) AND `rgpstatus` = 'renewPeriod'") or die $dbh->errstr;
-$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`trdate`, INTERVAL 5 DAY) AND `rgpstatus` = 'transferPeriod'") or die $dbh->errstr;
+# end the grace periods (rgp_*_period_minutes) _________________________________________________________________________________________________________________
+# autoRenewPeriod runs from the old expiry date, in renewedDate, as command-delete.cgi checks it. Upstream measured it
+# from `exdate`, which the auto-renew had already moved a year ahead.
+$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`renewedDate`, INTERVAL $c{'rgp_auto_renew_period_minutes'} MINUTE) AND `rgpstatus` = 'autoRenewPeriod'") or die $dbh->errstr;
+$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`crdate`, INTERVAL $c{'rgp_add_period_minutes'} MINUTE) AND `rgpstatus` = 'addPeriod'") or die $dbh->errstr;
+$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`renewedDate`, INTERVAL $c{'rgp_renew_period_minutes'} MINUTE) AND `rgpstatus` = 'renewPeriod'") or die $dbh->errstr;
+$dbh->do("UPDATE `domain` SET `rgpstatus` = NULL WHERE CURRENT_TIMESTAMP > DATE_ADD(`trdate`, INTERVAL $c{'rgp_transfer_period_minutes'} MINUTE) AND `rgpstatus` = 'transferPeriod'") or die $dbh->errstr;
 
 
 
 
 
-# The current value of the redemptionPeriod is 30 calendar days.
-my $sth_pendingdelete = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE CURRENT_TIMESTAMP > DATE_ADD(`delTime`, INTERVAL 30 DAY) AND `rgpstatus` = 'redemptionPeriod'") or die $dbh->errstr;
+# The redemptionPeriod starts at delTime and lasts rgp_redemption_period_minutes (upstream: 30 calendar days).
+my $sth_pendingdelete = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE CURRENT_TIMESTAMP > DATE_ADD(`delTime`, INTERVAL $c{'rgp_redemption_period_minutes'} MINUTE) AND `rgpstatus` = 'redemptionPeriod'") or die $dbh->errstr;
 $sth_pendingdelete->execute() or die $sth_pendingdelete->errstr;
 
 while (my ($domain_id,$name,$exdate) = $sth_pendingdelete->fetchrow_array) {
@@ -189,8 +191,8 @@ $sth_pendingdelete->finish;
 # A name that is in PENDINGRESTORE status will be included in the zone file.
 # Registrar requests to modify or otherwise update a domain in REDEMPTIONPERIOD status will be rejected.
 # A domain name is returned to REDEMPTIONPERIOD status a specified number of calendar days after it is placed in PENDINGRESTORE
-# unless the registrar submits a complete Registrar Restore Report to the Registry Operator. The current length of this Pending Restore Period is seven calendar days.
-my $sth_pendingRestore = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE `rgpstatus` = 'pendingRestore' AND (CURRENT_TIMESTAMP > DATE_ADD(`resTime`, INTERVAL 7 DAY))") or die $dbh->errstr;
+# unless the registrar submits a complete Registrar Restore Report to the Registry Operator. The length of this Pending Restore Period is rgp_pending_restore_minutes (upstream: seven calendar days).
+my $sth_pendingRestore = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE `rgpstatus` = 'pendingRestore' AND (CURRENT_TIMESTAMP > DATE_ADD(`resTime`, INTERVAL $c{'rgp_pending_restore_minutes'} MINUTE))") or die $dbh->errstr;
 $sth_pendingRestore->execute() or die $sth_pendingRestore->errstr;
 while (my ($domain_id,$name,$exdate) = $sth_pendingRestore->fetchrow_array) {
 	$dbh->do("UPDATE `domain` SET `rgpstatus` = 'redemptionPeriod' WHERE `id` = '$domain_id'") or die $dbh->errstr;
@@ -208,7 +210,9 @@ $sth_pendingRestore->finish;
 
 
 
-my $sth_delete = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE CURRENT_TIMESTAMP > DATE_ADD(`delTime`, INTERVAL 35 DAY) AND `rgpstatus` = 'pendingDelete'") or die $dbh->errstr;
+# pendingDelete lasts rgp_pending_delete_minutes (upstream: 5 calendar days) after the redemptionPeriod
+my $purge_after = $c{'rgp_redemption_period_minutes'} + $c{'rgp_pending_delete_minutes'};
+my $sth_delete = $dbh->prepare("SELECT `id`,`name`,`exdate` FROM `domain` WHERE CURRENT_TIMESTAMP > DATE_ADD(`delTime`, INTERVAL $purge_after MINUTE) AND `rgpstatus` = 'pendingDelete'") or die $dbh->errstr;
 $sth_delete->execute() or die $sth_delete->errstr;
 
 while (my ($domain_id,$name,$exdate) = $sth_delete->fetchrow_array) {

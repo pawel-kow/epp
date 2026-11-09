@@ -82,7 +82,8 @@ while (my ($domain_id,$name,$registrant,$crdate,$exdate,$update,$clid,$crid,$upi
 	#_________________________________________________________________________________________________________________
 
 	my ($from) = $dbh->selectrow_array("SELECT `exdate` FROM `domain` WHERE `id` = '$domain_id' LIMIT 1");
-	my $sth_update = $dbh->prepare("UPDATE `domain` SET `exdate` = DATE_ADD(`exdate`, INTERVAL $date_add MONTH), `update` = CURRENT_TIMESTAMP, `clid` = '$reid', `upid` = '$clid', `trdate` = CURRENT_TIMESTAMP, `trstatus` = 'serverApproved', `acdate` = CURRENT_TIMESTAMP, `transfer_exdate` = NULL WHERE `id` = '$domain_id'") or die $dbh->errstr;
+	# The transfer grace period starts here, as it does in command-transfer.cgi when the losing registrar approves
+	my $sth_update = $dbh->prepare("UPDATE `domain` SET `exdate` = DATE_ADD(`exdate`, INTERVAL $date_add MONTH), `update` = CURRENT_TIMESTAMP, `clid` = '$reid', `upid` = '$clid', `trdate` = CURRENT_TIMESTAMP, `trstatus` = 'serverApproved', `acdate` = CURRENT_TIMESTAMP, `transfer_exdate` = NULL, `rgpstatus` = 'transferPeriod', `transferPeriod` = '$date_add' WHERE `id` = '$domain_id'") or die $dbh->errstr;
 	$sth_update->execute() or die $sth_update->errstr;
 
 	my $sth_update_host = $dbh->prepare("UPDATE `host` SET `clid` = '$reid', `upid` = NULL, `update` = CURRENT_TIMESTAMP, `trdate` = CURRENT_TIMESTAMP WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;

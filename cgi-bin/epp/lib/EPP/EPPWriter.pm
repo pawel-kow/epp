@@ -521,7 +521,8 @@ sub _info_domain {
             $writer->endTag(); # </domain:infData>
         $writer->endTag(); # </resData>
 # -------------------
-        my $rgp = _chosen($resp, 'urn:ietf:params:xml:ns:rgp-1.0');
+        # A domain outside every grace period has no rgpStatus, and RFC 3915 has no empty value for it
+        my $rgp = $resp->{rgpstatus} && _chosen($resp, 'urn:ietf:params:xml:ns:rgp-1.0');
         my $secdns = $resp->{secDNS} && _chosen($resp, 'urn:ietf:params:xml:ns:secDNS-1.1');
         my $idn = $resp->{idn} && _chosen($resp, 'urn:ietf:params:xml:ns:idn-1.0');
         if ($rgp || $secdns || $idn) {
