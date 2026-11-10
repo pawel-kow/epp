@@ -42,6 +42,22 @@ close CONFIG;
 	m/(.*?)\s*=\s*(.*)/;
 } @conf;
 
+# RFC 3915 grace periods in minutes, read by command-delete.cgi and change-domain-status.pl.
+# Upstream's fixed values apply when registry.conf has none or a value that is not a number.
+my %rgp_defaults = (
+	rgp_add_period_minutes => 7200,         # 5 days
+	rgp_renew_period_minutes => 7200,       # 5 days
+	rgp_transfer_period_minutes => 7200,    # 5 days
+	rgp_auto_renew_period_minutes => 64800, # 45 days
+	rgp_expiry_grace_minutes => 43200,      # 30 days after expiry before an unrenewed domain goes to redemptionPeriod
+	rgp_redemption_period_minutes => 43200, # 30 days
+	rgp_pending_restore_minutes => 10080,   # 7 days
+	rgp_pending_delete_minutes => 7200,     # 5 days
+);
+foreach my $key (keys %rgp_defaults) {
+	$c{$key} = $rgp_defaults{$key} unless defined $c{$key} && $c{$key} =~ /^\d+$/;
+}
+
 1;
 
 

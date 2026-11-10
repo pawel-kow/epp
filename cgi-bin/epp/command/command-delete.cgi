@@ -233,9 +233,10 @@ elsif ($obj = $xp->find('domain:delete',$node)->get_node(0)) {
 
 	# aici va fi o matematica complicata unde noi vom returna banii inapoi pentru Status Values
 	# se vor inscrie in balance banii pusi inapoi
-	my $grace_period = 30;
+	# delTime is when the redemption period starts, as in change-domain-status.pl. Upstream set it
+	# 30 days ahead, and so made the redemption period of a deleted domain 60 days long.
 	$dbh->do("DELETE FROM `domain_status` WHERE `domain_id` = '$domain_id'") or die $dbh->errstr;
-	$dbh->do("UPDATE `domain` SET `rgpstatus` = 'redemptionPeriod', `delTime` = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL $grace_period DAY) WHERE `id` = '$domain_id'") or die $dbh->errstr;
+	$dbh->do("UPDATE `domain` SET `rgpstatus` = 'redemptionPeriod', `delTime` = CURRENT_TIMESTAMP WHERE `id` = '$domain_id'") or die $dbh->errstr;
 	$dbh->do("INSERT INTO `domain_status` (`domain_id`,`status`) VALUES('$domain_id','pendingDelete')") or die $dbh->errstr;
 
 	# <registry:gracePeriod command="create" unit="d">5</registry:gracePeriod>
@@ -245,8 +246,8 @@ elsif ($obj = $xp->find('domain:delete',$node)->get_node(0)) {
 
 	if ($rgpstatus) {
 		if ($rgpstatus eq 'addPeriod') {
-			# verificam daca se incadreaza in intervalul de 5 zile dupa inregistrare
-			my ($addPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`crdate`, INTERVAL 5 DAY)) LIMIT 1");
+			# verificam daca se incadreaza in add grace period (rgp_add_period_minutes) dupa inregistrare
+			my ($addPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`crdate`, INTERVAL $c{'rgp_add_period_minutes'} MINUTE)) LIMIT 1");
 			if ($addPeriod_id) {
 				# ii dam banii inapoi
 				my ($price) = $dbh->selectrow_array("SELECT `m$addPeriod` FROM `domain_price` WHERE `tldid` = '$tldid' AND `command` = 'create' LIMIT 1");
@@ -309,8 +310,8 @@ elsif ($obj = $xp->find('domain:delete',$node)->get_node(0)) {
 			}
 		}
 		elsif ($rgpstatus eq 'autoRenewPeriod') {
-			# verificam daca se incadreaza in intervalul de 45 zile dupa reinnoire
-			my ($autoRenewPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`renewedDate`, INTERVAL 45 DAY)) LIMIT 1");
+			# verificam daca se incadreaza in auto-renew grace period (rgp_auto_renew_period_minutes) dupa reinnoire
+			my ($autoRenewPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`renewedDate`, INTERVAL $c{'rgp_auto_renew_period_minutes'} MINUTE)) LIMIT 1");
 			if ($autoRenewPeriod_id) {
 				# ii dam banii inapoi
 				my ($price) = $dbh->selectrow_array("SELECT `m$autoRenewPeriod` FROM `domain_price` WHERE `tldid` = '$tldid' AND `command` = 'renew' LIMIT 1");
@@ -332,7 +333,7 @@ elsif ($obj = $xp->find('domain:delete',$node)->get_node(0)) {
 		}
 		elsif ($rgpstatus eq 'renewPeriod') {
 			# verificam daca se incadreaza in intervalul de 5 zile dupa reinnoire
-			my ($renewPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`renewedDate`, INTERVAL 5 DAY)) LIMIT 1");
+			my ($renewPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`renewedDate`, INTERVAL $c{'rgp_renew_period_minutes'} MINUTE)) LIMIT 1");
 			if ($renewPeriod_id) {
 				# ii dam banii inapoi
 				my ($price) = $dbh->selectrow_array("SELECT `m$renewPeriod` FROM `domain_price` WHERE `tldid` = '$tldid' AND `command` = 'renew' LIMIT 1");
@@ -354,7 +355,7 @@ elsif ($obj = $xp->find('domain:delete',$node)->get_node(0)) {
 		}
 		elsif ($rgpstatus eq 'transferPeriod') {
 			# verificam daca se incadreaza in intervalul de 5 zile dupa transfer
-			my ($transferPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`trdate`, INTERVAL 5 DAY)) LIMIT 1");
+			my ($transferPeriod_id) = $dbh->selectrow_array("SELECT `id` FROM `domain` WHERE `id` = '$domain_id' AND (CURRENT_TIMESTAMP < DATE_ADD(`trdate`, INTERVAL $c{'rgp_transfer_period_minutes'} MINUTE)) LIMIT 1");
 			if ($transferPeriod_id) {
 				# ii dam banii inapoi daca la transfer a fost facut si un renew
 				if ($transferPeriod > 0) {
